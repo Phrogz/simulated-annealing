@@ -5,6 +5,9 @@ module.exports = function ({
     newState,
     getTemp,
     getEnergy,
+    clone,
+    occasionallyInvoke,
+    invokeEvery,
 } = {}) {
     if (!isFunction(newState)) {
         throw new Error('newState is not function.');
@@ -16,32 +19,41 @@ module.exports = function ({
         throw new Error('getEnergy is not function.');
     }
 
-    var currentTemp = tempMax;
-    
-    var lastState = initialState;
-    var lastEnergy = getEnergy(lastState);
+    let currentTemp = tempMax;
 
-    var bestState = lastState;
-    var bestEnergy = lastEnergy;
+    let lastState = initialState;
+    let lastEnergy = getEnergy(lastState);
+
+    let bestState = lastState;
+    let bestEnergy = lastEnergy;
+
+    let iterations;
+
+    if (isFunction(occasionallyInvoke) && typeof invokeEvery==='number') {
+        iterations = 0;
+        // Ensure this is an integer for mod calculations
+        invokeEvery = Math.round(invokeEvery);
+    }
 
     while (currentTemp > tempMin) {
         let currentState = newState(lastState);
         let currentEnergy = getEnergy(currentState);
 
-        if (currentEnergy < lastEnergy) {
+        if ((currentEnergy<lastEnergy) ||
+            (Math.random() <= Math.exp(-(currentEnergy - lastEnergy)/currentTemp))) {
             lastState = currentState;
             lastEnergy = currentEnergy;
-        } else {
-            if (Math.random() <= Math.exp(-(currentEnergy - lastEnergy)/currentTemp)) {
-                lastState = currentState;
-                lastEnergy = currentEnergy;
-            }
         }
 
-        if (bestEnergy > lastEnergy) {
-            bestState = lastState;
+        if (lastEnergy < bestEnergy) {
+            bestState = clone ? clone.call(lastState, lastState) : lastState;
             bestEnergy = lastEnergy;
         }
+
+        if (iterations && ((++iterations % invokeEvery)===0)) {
+            occasionallyInvoke(lastState, lastEnergy, bestState, bestEnergy, currentTemp, iterations);
+        }
+
         currentTemp = getTemp(currentTemp);
     }
     return bestState;
