@@ -34,7 +34,6 @@ module.exports = function ({
         // Ensure this is an integer for mod calculations
         invokeEvery = Math.round(invokeEvery);
     }
-
     while (currentTemp > tempMin) {
         let currentState = newState(lastState);
         let currentEnergy = getEnergy(currentState);
@@ -50,7 +49,7 @@ module.exports = function ({
             bestEnergy = lastEnergy;
         }
 
-        if (iterations && ((++iterations % invokeEvery)===0)) {
+        if (iterations!==undefined && ((++iterations % invokeEvery)===0)) {
             occasionallyInvoke(lastState, lastEnergy, bestState, bestEnergy, currentTemp, iterations);
         }
 
