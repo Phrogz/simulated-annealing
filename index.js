@@ -4,58 +4,65 @@ module.exports = function ({
     tempMin,
     newState,
     getTemp,
-    getEnergy,
-    clone,
+    getScore,
+    cloneState,
     occasionallyInvoke,
     invokeEvery,
+    maxIterations
 } = {}) {
+    const startTime = new Date;
     if (!isFunction(newState)) {
         throw new Error('newState is not function.');
     }
     if (!isFunction(getTemp)) {
         throw new Error('getTemp is not function.');
     }
-    if (!isFunction(getEnergy)) {
-        throw new Error('getEnergy is not function.');
+    if (!isFunction(getScore)) {
+        throw new Error('getScore is not function.');
     }
 
     let currentTemp = tempMax;
 
     let lastState = initialState;
-    let lastEnergy = getEnergy(lastState);
+    let lastScore = getScore(lastState);
 
     let bestState = lastState;
-    let bestEnergy = lastEnergy;
+    let bestScore = lastScore;
 
-    let iterations;
+    let iterations = 0;
 
-    if (isFunction(occasionallyInvoke) && typeof invokeEvery==='number') {
-        iterations = 0;
-        // Ensure this is an integer for mod calculations
-        invokeEvery = Math.round(invokeEvery);
-    }
-    while (currentTemp > tempMin) {
-        let currentState = newState(lastState);
-        let currentEnergy = getEnergy(currentState);
+    let currentState, currentScore;
 
-        if ((currentEnergy<lastEnergy) ||
-            (Math.random() <= Math.exp(-(currentEnergy - lastEnergy)/currentTemp))) {
+    while (iterations <= maxIterations) {
+        if (currentTemp<=0.001) {
+            currentState = bestState;
+            currentScore = bestScore;            
+        } else {
+            currentState = newState(lastState);
+            currentScore = getScore(currentState);
+        }
+
+        const deltaScore = currentScore.score - lastScore.score;
+        if ((deltaScore<0) || (Math.random()<=Math.exp(-deltaScore/currentTemp))) {
             lastState = currentState;
-            lastEnergy = currentEnergy;
+            lastScore = currentScore;
+
+            if (currentScore.score<=bestScore.score) {
+                bestState = cloneState ? cloneState.call(currentState, currentState) : currentState;
+                bestScore = currentScore;
+            }
         }
 
-        if (lastEnergy < bestEnergy) {
-            bestState = clone ? clone.call(lastState, lastState) : lastState;
-            bestEnergy = lastEnergy;
+        ++iterations;
+
+        if (occasionallyInvoke && invokeEvery && (iterations % invokeEvery)===0) {
+            const now = new Date;
+            occasionallyInvoke(lastState, lastScore, bestState, bestScore, currentTemp, iterations, (now-startTime)/1000);
         }
 
-        if (iterations!==undefined && ((++iterations % invokeEvery)===0)) {
-            occasionallyInvoke(lastState, lastEnergy, bestState, bestEnergy, currentTemp, iterations);
-        }
-
-        currentTemp = getTemp(currentTemp);
+        currentTemp = getTemp(currentTemp, tempMin, tempMax, iterations);
     }
-    return bestState;
+    return {state:bestState, score:bestScore};
 }
 
 function isFunction(functionToCheck) {
