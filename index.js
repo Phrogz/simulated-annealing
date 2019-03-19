@@ -1,7 +1,5 @@
 module.exports = function ({
     initialState,
-    tempMax,
-    tempMin,
     newState,
     getTemp,
     getScore,
@@ -21,22 +19,23 @@ module.exports = function ({
         throw new Error('getScore is not function.');
     }
 
-    let currentTemp = tempMax;
+    let lastState = clone(initialState);
+    let bestState = clone(lastState);
 
-    let lastState = initialState;
     let lastScore = getScore(lastState);
-
-    let bestState = lastState;
     let bestScore = lastScore;
 
     let iterations = 0;
+    let currentState, currentScore, currentTemp;
 
-    let currentState, currentScore;
+    while (iterations++ <= maxIterations) {
+        currentTemp = getTemp(currentTemp, iterations);
 
-    while (iterations <= maxIterations) {
+        // TODO: don't reset multiple times in a row
         if (currentTemp<=0.001) {
-            currentState = bestState;
-            currentScore = bestScore;            
+            currentState = clone(bestState);
+            currentScore = bestScore;
+            continue;
         } else {
             currentState = newState(lastState);
             currentScore = getScore(currentState);
@@ -48,21 +47,22 @@ module.exports = function ({
             lastScore = currentScore;
 
             if (currentScore.score<=bestScore.score) {
-                bestState = cloneState ? cloneState.call(currentState, currentState) : currentState;
+                bestState = clone(currentState);
                 bestScore = currentScore;
             }
         }
-
-        ++iterations;
 
         if (occasionallyInvoke && invokeEvery && (iterations % invokeEvery)===0) {
             const now = new Date;
             occasionallyInvoke(lastState, lastScore, bestState, bestScore, currentTemp, iterations, (now-startTime)/1000);
         }
-
-        currentTemp = getTemp(currentTemp, tempMin, tempMax, iterations);
     }
+
     return {state:bestState, score:bestScore};
+
+    function clone(state) {
+        return cloneState ? cloneState.call(state, state) : state;
+    }
 }
 
 function isFunction(functionToCheck) {
