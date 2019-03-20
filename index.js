@@ -32,7 +32,7 @@ module.exports = function ({
         currentTemp = getTemp(currentTemp, iterations);
 
         // TODO: don't reset multiple times in a row
-        if (currentTemp<=0.001) {
+        if (currentTemp<=1e-6) {
             currentState = clone(bestState);
             currentScore = bestScore;
             continue;
